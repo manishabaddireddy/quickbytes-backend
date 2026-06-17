@@ -2,10 +2,12 @@ import { Router } from "express";
 import { eq } from "drizzle-orm";
 import { db, usersTable, insertUserSchema } from "../db/index.js";
 import { z } from "zod";
+import jwt from "jsonwebtoken";
 
 const router = Router();
+const JWT_SECRET = process.env.JWT_SECRET || "quickbytes_secret";
 
-// POST /api/auth/register — create a new account
+// POST /api/auth/register
 router.post("/auth/register", async (req, res) => {
   const parsed = insertUserSchema.safeParse(req.body);
   if (!parsed.success) {
@@ -13,7 +15,6 @@ router.post("/auth/register", async (req, res) => {
     return;
   }
 
-  // Check if email already exists
   const [existing] = await db
     .select()
     .from(usersTable)
@@ -25,16 +26,23 @@ router.post("/auth/register", async (req, res) => {
   }
 
   const [user] = await db.insert(usersTable).values(parsed.data).returning();
+
+  const token = jwt.sign(
+    { userId: user.id, email: user.email },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
   res.status(201).json({
     message: "Account created successfully",
+    token,
     user: { id: user.id, name: user.name, email: user.email },
   });
 });
 
-// POST /api/auth/login — login with email (simple, no password hashing for now)
+// POST /api/auth/login
 const loginSchema = z.object({
   email: z.string().email(),
-  name: z.string().optional(),
 });
 
 router.post("/auth/login", async (req, res) => {
@@ -54,8 +62,15 @@ router.post("/auth/login", async (req, res) => {
     return;
   }
 
+  const token = jwt.sign(
+    { userId: user.id, email: user.email },
+    JWT_SECRET,
+    { expiresIn: "7d" }
+  );
+
   res.json({
     message: "Login successful",
+    token,
     user: { id: user.id, name: user.name, email: user.email },
   });
 });

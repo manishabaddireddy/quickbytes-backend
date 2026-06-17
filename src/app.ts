@@ -9,7 +9,7 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
 }));
 
-app.use(cors());
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
